@@ -9,6 +9,7 @@ from langgraph.prebuilt.tool_node import ToolNode
 from helpers import agent_node,create_agent
 from tools import LeadFinderTool, LeadExtractorTool
 from typing import Type, List, Dict, Any
+
 load_dotenv()
 
 class State(TypedDict):
@@ -29,6 +30,21 @@ lead_finder_tools = [LeadFinderTool()]
 lead_enricher_tools = [LeadExtractorTool()]
 
 graph = StateGraph(State)
+
+# Task Planner
+task_planner_agent = create_agent(
+    llm,
+    [],
+    """
+    You are a professional task planner. 
+    Your job is to break down the user's requirement into sub-tasks that can be executed by the lead finder.
+    Return only the list of sub-tasks.
+    Do not include any markdown styling in your response.
+    """,
+)
+task_planner_node = functools.partial(
+    agent_node, agent=task_planner_agent, name="task_planner"
+)
 
 # Lead Finder
 lead_finder_agent = create_agent(
@@ -62,11 +78,17 @@ lead_enricher_node = functools.partial(
 )
 
 # Nodes
+graph.add_node("task_planner", task_planner_node)
 graph.add_node("lead_finder", lead_finder_node)
 graph.add_node("lead_enricher", lead_enricher_node)
 graph.add_node("call_tool", ToolNode(lead_finder_tools + lead_enricher_tools))
 
 # Edges
+graph.add_conditional_edges(
+    "task_planner",
+    router,
+    {"continue": "lead_finder", "call_tool": "call_tool"},
+)
 graph.add_conditional_edges(
     "lead_finder",
     router,
@@ -78,10 +100,10 @@ graph.add_conditional_edges(
 graph.add_conditional_edges(
     "call_tool",
     lambda x: x["sender"],
-    {"lead_finder": "lead_finder", "lead_enricher": "lead_enricher"},
+    {"task_planner": "task_planner", "lead_finder": "lead_finder", "lead_enricher": "lead_enricher"},
 )
 
-graph.add_edge(START, "lead_finder")
+graph.add_edge(START, "task_planner")
 
 graph = graph.compile()
 graph.name = "Leadgen Graph"
