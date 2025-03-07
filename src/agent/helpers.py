@@ -1,5 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.messages import AIMessage, ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage, HumanMessage
 
 def create_agent(llm, tools, system_message: str):
     prompt = ChatPromptTemplate.from_messages(
@@ -20,11 +20,24 @@ def create_agent(llm, tools, system_message: str):
     return prompt | llm.bind_tools(tools)
 
 def agent_node(state, agent, name):
+    # Debugging: Print the messages before invoking the agent
+    print("Messages before API call:", state["messages"])
+
+    # Ensure the last message is from the user
+    if not isinstance(state["messages"][-1], HumanMessage):
+        state["messages"].append(HumanMessage(content="Please proceed with the task."))
+
+    # Invoke the agent
     result = agent.invoke(state)
+
+    # Debugging: Print the agent's output
+    print("Agent output:", result)
+
     if isinstance(result, ToolMessage):
         pass
     else:
         result = AIMessage(**result.dict(exclude={"type", "name"}), name=name)
+    
     return {
         "messages": [result],
         "sender": name,

@@ -2,11 +2,11 @@ from dotenv import load_dotenv
 import functools
 import os
 from typing import Annotated, TypedDict
-from langchain_openai import ChatOpenAI
+from langchain_openai import ChatOpenAI  # Use LangChain's ChatOpenAI
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt.tool_node import ToolNode
-from helpers import agent_node,create_agent
+from helpers import agent_node, create_agent
 from tools import LeadFinderTool, LeadExtractorTool
 from typing import Type, List, Dict, Any
 
@@ -16,7 +16,12 @@ class State(TypedDict):
     messages: Annotated[list, add_messages]
     sender: str
 
-llm = ChatOpenAI(model="gpt-4o-mini", streaming=True, api_key=os.getenv("OPENAI_API_KEY"))
+# Initialize Perplexity API using LangChain's ChatOpenAI
+llm = ChatOpenAI(
+    model="sonar-pro",  # Use the appropriate Perplexity model
+    api_key=os.getenv("PERPLEXITY_API_KEY"),
+    base_url="https://api.perplexity.ai",  # Perplexity API endpoint
+)
 
 def router(state):
     messages = state["messages"]
